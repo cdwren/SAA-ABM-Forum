@@ -1,4 +1,4 @@
-# Forum title: The nuts and bolts of agent-based modelling for archaeological science
+# The nuts and bolts of agent-based modelling for archaeological science
 
 ## Abstract: 
 Agent-based models (ABMs) are slowly becoming a common part of the archaeological science toolbox. However, even as they become more common there remains a lack of understanding among most archaeologists of what they are, how they work, and how they can contribute to broader archaeological research programs. Over the last few decades, articles and conference sessions applying agent-based models have demonstrated their utility to a variety of topics; however to the uninitiated agent-based models remain black boxes that are difficult to evaluate or to apply to non-ABM research. In this forum, we will attempt to dispel the mystery of archaeological agent-based models without delving too far into jargon filled computer code. Rather, we will present interactive and live-running agent-based models to show how archaeologists design and use them to address typical archaeological research questions. Presenters will highlight specific problems they encountered during their design, coding, parameterising, or validation phases and the choices they made to find a solution. The agent-based models presented will be available for forum participants to download and run themselves so they can follow along with the demonstrations and discuss their application.
@@ -13,7 +13,7 @@ As the abstract above states, the idea of this panel is to have live-running ABM
 *	You should prepare your demonstration so that it takes about 10 minutes, including addressing simple questions from the audience. This should also leave a few minutes for a more detailed question after.
   *	I expect questions will largely be of the can-you-make-the-model-do-X type. If so, try to address them in terms of how you’d go about changing the code, or additional data for parameterization, etc.
 *	Your presentation should (ideally) use an ABM that you developed as part of a specific research project rather than a tutorial model to illustrate some coding skills. We want to highlight the research question and how the ABM helps to address that question, and not to get bogged down explaining while vs for loops.
-*	You are welcome to use whatever coding platform you like. However, because I’d like to share the code with attendees in advance (all together in a GitHub repo I’ll set up), please make it will work on a vanilla version of the platform without extra DLLs, custom or non-base add-ons, or modified config files.
+*	You are welcome to use whatever coding platform you like. However, because I’d like to share the code with attendees in advance (all together in this GitHub repo), please make it will work on a vanilla version of the platform without extra DLLs, custom or non-base add-ons, or modified config files.
 
 ## Structuring your demo
 *	Ideally, do not use slides at all.
