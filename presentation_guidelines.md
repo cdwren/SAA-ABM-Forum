@@ -14,6 +14,7 @@ As the abstract above states, the idea of this panel is to have live-running ABM
   *	I expect questions will largely be of the can-you-make-the-model-do-X type. If so, try to address them in terms of how you’d go about changing the code, or additional data for parameterization, etc.
 *	Your presentation should (ideally) use an ABM that you developed as part of a specific research project rather than a tutorial model to illustrate some coding skills. We want to highlight the research question and how the ABM helps to address that question, and not to get bogged down explaining while vs for loops.
 *	You are welcome to use whatever coding platform you like. However, because I’d like to share the code with attendees in advance (all together in this GitHub repo), please make it will work on a vanilla version of the platform without extra DLLs, custom or non-base add-ons, or modified config files.
+* The idea is to entice others to join our ABM team. Make your demo approachable and optimistic rather than focusing on the dreary slog of that time you spent three weeks getting a single line of code to work right ;)
 
 ## Structuring your demo
 *	Ideally, do not use slides at all.
