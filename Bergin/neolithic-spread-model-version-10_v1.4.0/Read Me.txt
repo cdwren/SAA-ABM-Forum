@@ -1,0 +1,15 @@
+The enclosed model "The Neolithic Spread Model" is a Netlogo model.
+
+It is compatible with the ABM platform Netlogo, version 6.0.3
+
+https://ccl.northwestern.edu/netlogo/download.shtml
+
+In order to run this model you must load a map with the extension *.asc
+A map called ecol_index.asc is provided in the folder called data.
+
+A start point must also be chosen using the menu buttons or loaded from a text file.
+A text file with start points formatted appropriately is also included in the folder called data, and is called coastal start points.
+
+A file with site locations can be loaded in order to compare the spread of the model to the available radiocarbon record. This file must have a *.shp extension. A file with Neolithic sites is included and entitled sites.shp
+
+More detailed information is available in the Docs folder.
