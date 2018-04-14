@@ -1,4 +1,4 @@
-extensions [gis matrix rnd r]
+extensions [gis matrix rnd ]
 breed [fires fire]
 breed [cores core]
 
@@ -20,12 +20,18 @@ globals [
   fuels-10h-plume                              ;; Resulting maximum plume from combustion of for 10-hour fuel size classes, wind is set at 0 meters per sec
   ignition-counter                             ;; Global variable for tracking the number of ignitions on the landscape per year
   spread-counter                               ;; Global variable for tracking the number of patches bruning created through spread on the landscape per year
-  ]
+  plume                                        ;; Initial plume, based on elevation and fuels
+
+
+  Char-1cell-25-micron-matrix                  ;; Variable to hold lookup table for this demo version of the model
+  Char-1cell-150-micron-matrix                 ;; Variable to hold lookup table for this demo version of the model
+
+]
 
 fires-own [
   biomass                                      ;; Biomass used for combustion, based on 1-hour or 10-hour biomasses in each patch
   fire-wind-vel                                ;; wind velocity at a burning patch
-  plume                                        ;; Initial plume, based on elevation and fuels
+
   biomass-charcoal-particles-conversion-25     ;; Conversion of biomass to charcoal mass (based on Gavin, 2001) and then subsequent division into particles per 25µm size gradient (based on Pitkänen 1999)
   biomass-charcoal-particles-conversion-150    ;; Conversion of biomass to charcoal mass (based on Gavin, 2001) and then subsequent division into particles per 150µm size gradient (based on Pitkänen 1999)
   plume-mod                                    ;; Modified plume due to wind velocity (Clark 1988: equation 5)
@@ -80,8 +86,8 @@ to setup-ignition-probability-maps   ;; Set up ignition probability maps based o
   if (Ignition-Distribution = "Natural-lightning") [set ignition-prob-map "DATA/rasters/lightning_elevation_ridges_probability.asc"]
   set ignition-prob-map gis:load-dataset ignition-prob-map
   gis:apply-raster ignition-prob-map ignition-prob
-  set ignition-prob-mean mean [ignition-prob] of patches
-  set ignition-prob-sd standard-deviation [ignition-prob] of patches
+  ;set ignition-prob-mean mean [ignition-prob] of patches
+  ;set ignition-prob-sd standard-deviation [ignition-prob] of patches
 end
 
 to setup-fuels
@@ -166,9 +172,18 @@ to setup-fires ;; sets up fire agents on the landscape based on user inputs
 end
 
 
-to load-deposition-function
-  let wd user-file
-  r:eval (word "source('" wd "')") ; must change this full file path to the location of r script
+to load-deposition-function ; R function removed and replaced by a lookup table for this demonstration
+ ; let wd user-file
+ ; r:eval (word "source('" wd "')") ; must change this full file path to the location of r script
+  file-open "DATA/charcoal_matrix_30x30_norm_1cell_150microns.txt"
+  let Char-1cell-150-micron-matrix-list file-read ;; Reads, parses, stores entire literal list
+  set Char-1cell-150-micron-matrix matrix:from-row-list Char-1cell-150-micron-matrix-list
+  file-close
+
+  file-open "DATA/charcoal_matrix_30x30_norm_1cell_25microns.txt"
+  let Char-1cell-25-micron-matrix-list file-read ;; Reads, parses, stores entire literal list
+  set Char-1cell-25-micron-matrix matrix:from-row-list Char-1cell-25-micron-matrix-list
+  file-close
 end
 
 
@@ -176,22 +191,23 @@ to remove-NaNs ;; removes all NaN values from map edges
   ask patches[
     ifelse (elevation <= 0) or (elevation >= 0)
     [ set elevation elevation ]
-    [ set elevation 0
-      set ignition-prob 0
-      set wind-vel 0
-      set wind-ang 0
+    [ set elevation 1
+      set ignition-prob 1
+      set wind-vel 1
+      set wind-ang 1
 ]]
 end
 
 
 to setup-parameters ;;set up all parameters
   setup-world
+  remove-NaNs
   setup-ignition-probability-maps
+  load-deposition-function
   setup-fuels
   setup-cores
   display-world
   setup-fires
-  remove-NaNs
   reset-ticks
 end
 
@@ -254,25 +270,31 @@ ask patch-here [set burn-counter  (burn-counter + 1)]
 ;Create all inputs for R code of 3d guassian plume model
 if count cores-on fallout-patches > 0 [
              ask cores[
-             set dist-from-fire distance current-fire
-             let theta-raw (towardsxy fire-x fire-y) + 180
-             if  theta-raw > 360 [set theta-raw theta-raw - 360]
-             set theta abs subtract-headings theta-raw theta-fire
-             set x-fire precision ((cos theta) * dist-from-fire * 30) -1 ; accomodates for the size of the cells in meters
-                set y-fire precision ((sin theta) * dist-from-fire * 30) -1] ; accomodates for the size of the cells in meters
+                set dist-from-fire distance current-fire]]
+
+;  ****** THIS SECITION OF CODE IS NOT USED FOR THIS DEMONSTRATION. IT HAS BEEN REPLACED BY A LOOKUP TABLE  PROCEDURE FROM AN OLDER VERSION OF THE ABM ******
+;  ****** IF YOU WOULD LIKE MORE INFORMATION ABOUT RUNNING THIS MODEL WITH THE R EXTENSION< CONTACT ME AT GSNITKER@ASU.EDU             ******
+;             let theta-raw (towardsxy fire-x fire-y) + 180
+;             if  theta-raw > 360 [set theta-raw theta-raw - 360]
+;             set theta abs subtract-headings theta-raw theta-fire
+;             set x-fire precision ((cos theta) * dist-from-fire * 30) -1 ; accomodates for the size of the cells in meters
+;                set y-fire precision ((sin theta) * dist-from-fire * 30) -1] ; accomodates for the size of the cells in meters
+
 
 ;Apply R code of 3d guassian plume model to core (must use <- in r:eval of disperse.x.y.u.h.d)
-r:put "x" [x-fire] of core 0
-r:put "y" [y-fire] of core 0
-r:put "u" fire-wind-vel
-r:put "h" plume
-r:put "d" 25
-r:eval "conc <-disperse.x.y.u.h.d(x,y,u,h,d)"
-ask cores [set charcoal-25 (lput ((r:get "conc") * [biomass-charcoal-particles-conversion-25] of current-fire) charcoal-25)] ;difussion equation via r and then multiply it by the amount of charcoal particles produced. Then convert to particles/cm3
-r:put "d" 150
-r:eval "conc <-disperse.x.y.u.h.d(x,y,u,h,d)"
-ask cores [set charcoal-150 (lput ((r:get "conc") * [biomass-charcoal-particles-conversion-150] of current-fire) charcoal-150 )]]] ;difussion equation via r and then multiply it by the amount of charcoal particles produced. Then convert to particles/cm3
+;r:put "x" [x-fire] of core 0
+;r:put "y" [y-fire] of core 0
+;r:put "u" fire-wind-vel
+;r:put "h" plume
+;r:put "d" 25
+;r:eval "conc <-disperse.x.y.u.h.d(x,y,u,h,d)"
+ask cores [set charcoal-25 (lput (( matrix:get Char-1cell-25-micron-matrix plume dist-from-fire) * [biomass-charcoal-particles-conversion-25] of current-fire) charcoal-25)] ;difussion equation via r and then multiply it by the amount of charcoal particles produced. Then convert to particles/cm3
+;r:put "d" 150
+;r:eval "conc <-disperse.x.y.u.h.d(x,y,u,h,d)"
+ask cores [set charcoal-150 (lput (( matrix:get Char-1cell-150-micron-matrix plume dist-from-fire) * [biomass-charcoal-particles-conversion-150] of current-fire) charcoal-150 )]] ;difussion equation via r and then multiply it by the amount of charcoal particles produced. Then convert to particles/cm3
    end
+
+; ****** CODE RESUMES ******
 
 to deposit
   ; deposit charcaol at sample location, aggregate results
@@ -320,7 +342,7 @@ BUTTON
 663
 163
 696
-3. Run
+2. Run
 go
 T
 1
@@ -341,7 +363,7 @@ Mean-natural-fire-freq
 Mean-natural-fire-freq
 0
 3
-0.01
+0.0
 .01
 1
 per year
@@ -391,7 +413,7 @@ deposit-interval
 deposit-interval
 0
 500
-85.0
+0.0
 1
 1
 years represented in 1 cm of deposition
@@ -406,7 +428,7 @@ deposition-events
 deposition-events
 101
 5001
-101.0
+0.0
 100
 1
 obs.
@@ -418,17 +440,17 @@ INPUTBOX
 160
 162
 world-size-adjustment
-2.6
+0.0
 1
 0
 Number
 
 BUTTON
-68
+8
 622
-162
+163
 659
-2. Setup All
+1. Setup All
 setup-parameters
 NIL
 1
@@ -536,7 +558,7 @@ CHOOSER
 Ignition-Scenario
 Ignition-Scenario
 "Swidden" "Pastoral" "Natural" "None"
-0
+2
 
 CHOOSER
 8
@@ -546,7 +568,7 @@ CHOOSER
 Ignition-Distribution
 Ignition-Distribution
 "Land-use" "Natural-lightning"
-0
+1
 
 TEXTBOX
 183
@@ -577,7 +599,7 @@ Mean-anth-fire-freq
 Mean-anth-fire-freq
 0
 3
-3.0
+0.0
 .01
 1
 per year
@@ -632,7 +654,7 @@ Probability-Cutoff
 Probability-Cutoff
 0
 1
-0.32
+0.0
 0.01
 1
 NIL
@@ -681,29 +703,12 @@ spread-counter
 1
 11
 
-BUTTON
-6
-622
-65
-658
-1. R code
-load-deposition-function
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 TEXTBOX
 8
 703
 492
 814
-Running this model:\n\n1. Select the file location of the R code used to evaluate the charcaol dispersion function. It is labeled \"guassian_plume_function.R\" in the model folder.\n\n2. Set up all other parameters\n\n3. Run the model\n
+Running this model:\n\n1. Set up all other parameters\n\n2. Run the model\n
 11
 0.0
 1
@@ -1063,7 +1068,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.2
+NetLogo 6.0.3
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
