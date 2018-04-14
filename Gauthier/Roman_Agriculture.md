@@ -1,10 +1,11 @@
 ---
 title: "A tidyABM simulation of Roman agriculture"
 author: "Nick Gauthier"
-date: "Last updated: 11 April, 2018"
+date: "Last updated: 13 April, 2018"
 bibliography: bibliography.bibtex
 output: 
   html_document: 
+    fig_caption: yes
     highlight: zenburn
     keep_md: yes
     theme: flatly
@@ -44,6 +45,9 @@ library(tidyverse)
 ```
 
 ## Modeling framework
+
+![Multi-level modeling framework](images/agent_heirarchy.png) 
+
 Here we'll use the tidyverse family of R packages to setup and run the model. The tidyverse is a set of R packages that share a common API, with a focus on using functional programming to make data analysis clear and human-readable. The basic idea of running a multi-agent simulation in the tidyverse is to represent our entire population of agents as a single data frame, with each agent getting its own row, and each column encoding different agent-specific variables. This framework allows us to take advantage of vectorized functions and underlying C++ code, which together facilitate extremely efficient processing of data frames with millions of rows.
 
 Representing agents as rows in a data frame let's us use another powerful tool -- the nested data frames in the purrr package. In a nested data frame, the objects stored in one or more columns can themselves be data frames of an arbitrary size, and so on. So, for example, a data frame of "household" agents can contain columns with simple integer values such as the amount of food that household has or the number of occupants in it.
@@ -51,7 +55,7 @@ Representing agents as rows in a data frame let's us use another powerful tool -
 
 ```r
 households <- tibble(household_number = 1:3,
-                     food_supply = 10:12,
+                     food_supply = 30,
                      n_occupants = 1:3)
 households
 ```
@@ -59,10 +63,10 @@ households
 ```
 ## # A tibble: 3 x 3
 ##   household_number food_supply n_occupants
-##              <int>       <int>       <int>
-## 1                1          10           1
-## 2                2          11           2
-## 3                3          12           3
+##              <int>       <dbl>       <int>
+## 1                1         30.           1
+## 2                2         30.           2
+## 3                3         30.           3
 ```
  
 We can also modify the "occupant" column, so each entry contains a new data frame containing a row representing and individual "person" agent and any relevant variables, such as age or sex.
@@ -70,17 +74,17 @@ We can also modify the "occupant" column, so each entry contains a new data fram
 ```r
 households_nest <- households %>%
   mutate(occupants = map(n_occupants, ~ tibble(occupant_number = 1:.x,
-                                             age = round(runif(.x, 1, 40)))))
+                                               age = round(runif(.x, 1, 40)))))
 households_nest
 ```
 
 ```
 ## # A tibble: 3 x 4
 ##   household_number food_supply n_occupants occupants       
-##              <int>       <int>       <int> <list>          
-## 1                1          10           1 <tibble [1 × 2]>
-## 2                2          11           2 <tibble [2 × 2]>
-## 3                3          12           3 <tibble [3 × 2]>
+##              <int>       <dbl>       <int> <list>          
+## 1                1         30.           1 <tibble [1 × 2]>
+## 2                2         30.           2 <tibble [2 × 2]>
+## 3                3         30.           3 <tibble [3 × 2]>
 ```
 
 The occupants column is just a list of data frames.
@@ -94,22 +98,22 @@ households_nest$occupants
 ## # A tibble: 1 x 2
 ##   occupant_number   age
 ##             <int> <dbl>
-## 1               1   19.
+## 1               1   38.
 ## 
 ## [[2]]
 ## # A tibble: 2 x 2
 ##   occupant_number   age
 ##             <int> <dbl>
-## 1               1   38.
-## 2               2   22.
+## 1               1   31.
+## 2               2   12.
 ## 
 ## [[3]]
 ## # A tibble: 3 x 2
 ##   occupant_number   age
 ##             <int> <dbl>
-## 1               1   11.
-## 2               2   28.
-## 3               3    4.
+## 1               1   18.
+## 2               2    5.
+## 3               3   19.
 ```
 
 We can easily unnest this data frame of 3 household agents into one of 6 occupant agents. This framework allows us to efficiently simulate "agents" across an arbitrary number of scales, all while facilitaing cross-scale interactions. For example, let's divide the households' food supplies across each individual in the household.
@@ -122,21 +126,20 @@ unnest(households_nest) %>%
 ```
 ## # A tibble: 6 x 6
 ##   household_number food_supply n_occupants occupant_number   age
-##              <int>       <int>       <int>           <int> <dbl>
-## 1                1          10           1               1   19.
-## 2                2          11           2               1   38.
-## 3                2          11           2               2   22.
-## 4                3          12           3               1   11.
-## 5                3          12           3               2   28.
-## 6                3          12           3               3    4.
+##              <int>       <dbl>       <int>           <int> <dbl>
+## 1                1         30.           1               1   38.
+## 2                2         30.           2               1   31.
+## 3                2         30.           2               2   12.
+## 4                3         30.           3               1   18.
+## 5                3         30.           3               2    5.
+## 6                3         30.           3               3   19.
 ## # ... with 1 more variable: individual_food <dbl>
 ```
 
 This model uses purrr's nesting functions to create a multi-level social simulation, with individuals, households, and settlements continuously interacting. This allows us to isolate specific processes to the scales most relevant to their functioning, while ensuring computational efficiency.
-![Multi-level modeling framework](images/agent_heirarchy.png) 
 
 ## Parameters
-Before we get into the model code, define some baseline parameters that will be used throughout the rest of the model. Beside the climate and environmental datal, these parameters are the only thing that make the model "Roman". Substitute in different parameters, and you will be well on your way to simulating the pre-Industrial agricultural system of your choice.
+Before we get into the model code, let's define some baseline parameters that will be used throughout the rest of the model. Beside the climate and environmental datal, these parameters are the only thing that make the model "Roman". Substitute in different parameters, and you will be well on your way to simulating the pre-Industrial agricultural system of your choice.
 
 The model will only "see" a few of these parameters (such as the wheat requirement) but we include all the variables that go into their derivation (such as calorie requirement) to preserve sanity if we ever want to change something later.
 
@@ -205,7 +208,7 @@ The first step a household agent takes is to allocate its labor between differen
 The performance of infrastructure is piecewise linear function of labor inputs [@david2015effect]. Two parameters $\psi$ and $\epsilon$ determine how much labor is required to keep irrigaiton infrastructure working at maximum capacity. Here we parameterize $\psi \approx \epsilon$ to make the infrastructure scalable, that is the agents can spend more or less time maintaining infrastructure and still be assured of at least some water. This is the consistent with the traditional *wadi* based runoff harvesting practiced in the region.
 
 ```r
-infrastructure_performance <- function(maintainance_labor, psi = .2, epsilon = .18, max_irrigation = 1){
+infrastructure_performance <- function(maintainance_labor, max_irrigation = 1){
   ifelse(0 <= maintainance_labor & maintainance_labor < (psi - epsilon), 0,
     ifelse(between(maintainance_labor, psi - epsilon, psi + epsilon), 
                    max_irrigation / (2 * epsilon) * (maintainance_labor - psi + epsilon), 
@@ -460,7 +463,7 @@ sim_data <- left_join(agents, environment)
 We run the actual simulation using the *accumulate* function from purrr. Under the hood its doing the same thing as a for loop, but saving all the intervening steps for us to make plotting and analysis easier later.
 
 ```r
-run_simulation <- function(input_data, nsim, replicates){
+run_simulation <- function(input_data, nsim, replicates = 1){
   rerun(replicates, {
      tibble(year = 1:nsim) %>%
       mutate(data = accumulate(year, ~ household_dynamics(environmental_dynamics(.x)), .init = input_data)[-1],
@@ -474,7 +477,7 @@ run_simulation <- function(input_data, nsim, replicates){
 ```r
 # This code (not run), presents an alternative parallelized approach for those with multiple cores
 library(parallel)
-run_simulation <- function(input_data, nsim, replicates){
+run_simulation_par <- function(input_data, nsim, replicates = 1){
   mclapply(1:replicates, function(x, input_data, nsim){
      tibble(year = 1:nsim) %>%
       mutate(data = accumulate(year, ~ household_dynamics(environmental_dynamics(.x)), .init = input_data)[-1],
@@ -499,14 +502,14 @@ sim_results <- run_simulation(sim_data, nsim, replicates)
 The accumulate function leaves our simulation outputs in a tidy format, with each year in its own row, which makes plotting in ggplot a breeze.
 
 ```r
-ggplot(sim_results, aes(year, population, group = simulation)) +
-  geom_line(alpha = .5) +
-  geom_smooth(aes(color = simulation)) +
+ggplot(sim_results, aes(year, population)) +
+  geom_line(aes(color = simulation), alpha = .5) +
+  geom_smooth() +
   theme_minimal()
 ```
 
 ```
-## `geom_smooth()` using method = 'loess'
+## `geom_smooth()` using method = 'gam'
 ```
 
 ![](Roman_Agriculture_files/figure-html/sim-plots-1.png)<!-- -->
@@ -522,6 +525,7 @@ sim_results %>%
 ```
 
 ![](Roman_Agriculture_files/figure-html/unnamed-chunk-24-1.png)<!-- -->
+
 
 
 
