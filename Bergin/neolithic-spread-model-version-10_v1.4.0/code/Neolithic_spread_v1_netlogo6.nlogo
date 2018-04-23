@@ -95,6 +95,8 @@ to setup-world[filename]
 
   set suitable patches with [patchtype = "suitable"] ;; initialize suitable patch set (i.e., suitable for agriculture)
   if color-world [ ask suitable [set-shading] ]
+
+  if count suitable < 1  [ user-message "No suitable patches available - please adjust your settings and reload the base map" ];;
 end
 
 to set-shading
@@ -521,7 +523,7 @@ CHOOSER
 spread-type
 spread-type
 "neighborhood" "leapfrog" "IDD" "neighborhood no constraints" "leapfrog no constraints"
-2
+1
 
 BUTTON
 5
@@ -625,7 +627,7 @@ ecol-threshold
 ecol-threshold
 0
 20
-12.0
+2.0
 1
 1
 NIL
